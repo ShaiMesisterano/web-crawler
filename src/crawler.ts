@@ -1,6 +1,7 @@
-import * as axios from 'axios';
 import * as fs from 'fs';
+import fetch from 'node-fetch';
 import { URL } from 'url';
+
 import { ImageResult } from './types';
 
 export const crawl = async (url: string, depth: number): Promise<void> => {
@@ -18,29 +19,38 @@ export const crawl = async (url: string, depth: number): Promise<void> => {
     visited.add(pageUrl);
 
     try {
-      const response = await axios.get(pageUrl);
+      const response = await fetch(pageUrl);
       const base = new URL(pageUrl);
 
-      const images = response.data.match(/<img[^>]*src="([^"]*)"[^>]*>/g);
+      const data = await response.text();
+      const images = data.match(/<img[^>]*src="([^"]*)"[^>]*>/g);
 
       if (images) {
-        images.forEach(imageTag => {
-          const imageUrl = imageTag.match(/src="([^"]*)"/)[1];
-          results.push({
-            imageUrl,
-            sourceUrl: pageUrl,
-            depth: currentDepth,
-          });
+        images.forEach((imageTag: string) => {
+          const imageUrlMatch = imageTag.match(/src="([^"]*)"/);
+          const imageUrl = imageUrlMatch ? imageUrlMatch[1] : null;
+
+          if (imageUrl) {
+            results.push({
+              imageUrl,
+              sourceUrl: pageUrl,
+              depth: currentDepth,
+            });
+          }
         });
       }
 
-      const links = response.data.match(/<a[^>]*href="([^"]*)"[^>]*>/g);
+      const links = data.match(/<a[^>]*href="([^"]*)"[^>]*>/g);
 
       if (links) {
         for (const linkTag of links) {
-          const linkUrl = linkTag.match(/href="([^"]*)"/)[1];
-          const resolvedLinkUrl = new URL(linkUrl, base).href;
-          await processPage(resolvedLinkUrl, currentDepth + 1);
+          const linkUrlMatch = linkTag.match(/href="([^"]*)"/);
+          const linkUrl = linkUrlMatch ? linkUrlMatch[1] : null;
+
+          if (linkUrl) {
+            const resolvedLinkUrl = new URL(linkUrl, base).href;
+            await processPage(resolvedLinkUrl, currentDepth + 1);
+          }
         }
       }
     } catch (error) {

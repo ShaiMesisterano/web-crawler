@@ -3,3 +3,5 @@ export interface ImageResult {
   sourceUrl: string;
   depth: number;
 }
+
+export interface ImageTag {}
